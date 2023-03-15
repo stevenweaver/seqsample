@@ -1,24 +1,24 @@
 use bio::io::fasta;
+use rand::{seq::IteratorRandom, thread_rng};
 use std::error::Error;
 use std::ffi::OsStr;
-use std::io;
 use std::fs;
 use std::fs::OpenOptions;
+use std::io;
 use std::path::Path;
 use std::str;
-use rand::{seq::IteratorRandom, thread_rng};
 
 fn is_path_empty<P: AsRef<Path>>(path: P) -> bool {
-    return path.as_ref().to_string_lossy().to_string().is_empty()
+    return path.as_ref().to_string_lossy().to_string().is_empty();
 }
 
 // String Match Option
-pub fn random_sample<P: AsRef<Path> + AsRef<OsStr>>(filename: P, number: f32, store_background: P) -> bool {
-
-    let mut null_file = OpenOptions::new()
-    .write(true)
-    .open("/dev/null")
-    .unwrap();
+pub fn random_sample<P: AsRef<Path> + AsRef<OsStr>>(
+    filename: P,
+    number: f32,
+    store_background: P,
+) -> bool {
+    let mut null_file = OpenOptions::new().write(true).open("/dev/null").unwrap();
 
     let mut background_writer = fasta::Writer::new(io::BufWriter::new(null_file));
     let mut rng = thread_rng();
@@ -30,9 +30,9 @@ pub fn random_sample<P: AsRef<Path> + AsRef<OsStr>>(filename: P, number: f32, st
     let records2 = fasta::Reader::from_file(file).unwrap().records();
     let records3 = fasta::Reader::from_file(file).unwrap().records();
 
-	// If store_background is set, then write to the file
+    // If store_background is set, then write to the file
 
-    if !is_path_empty(&store_background) { 
+    if !is_path_empty(&store_background) {
         let background_filename = Path::new(&store_background).to_str().unwrap();
         let bg_file = fs::File::create(background_filename).unwrap();
         let handle = io::BufWriter::new(bg_file);
@@ -55,38 +55,33 @@ pub fn random_sample<P: AsRef<Path> + AsRef<OsStr>>(filename: P, number: f32, st
 
     let sampled_records = records.choose_multiple(&mut rng, whole_number);
 
-	let sampled_record_ids:String = sampled_records.into_iter().map(|x| String::from(x.unwrap().id())).collect();
+    let sampled_record_ids: String = sampled_records
+        .into_iter()
+        .map(|x| String::from(x.unwrap().id()))
+        .collect();
 
     // Get records that are note part of choose
-	for record in records2 {
+    for record in records2 {
+        let record = record.unwrap();
 
-		let record = record.unwrap();
+        if sampled_record_ids.contains(record.id()) {
+            //let sequence_id_bytes = record.id();
+            //let sequence_description_bytes = record.desc().unwrap_or("");
+            //let entire_header_raw = [sequence_id_bytes, sequence_description_bytes].join(" ");
+            //let entire_header = entire_header_raw.trim();
+            //println!("I am {}!", entire_header);
 
-		if sampled_record_ids.contains(record.id()) {
-
-			//let sequence_id_bytes = record.id();
-			//let sequence_description_bytes = record.desc().unwrap_or("");
-			//let entire_header_raw = [sequence_id_bytes, sequence_description_bytes].join(" ");
-			//let entire_header = entire_header_raw.trim();
-			//println!("I am {}!", entire_header);
-
-			writer
-				.write(record.id(), record.desc(), record.seq())
-				.expect("Error writing record.");
-
-		} else {
-
+            writer
+                .write(record.id(), record.desc(), record.seq())
+                .expect("Error writing record.");
+        } else {
             background_writer
                 .write(record.id(), record.desc(), record.seq())
-				.expect("Error writing record.");
-
-
+                .expect("Error writing record.");
         }
-
-	}
+    }
 
     return true;
-
 }
 
 pub(crate) fn process<P: AsRef<Path> + AsRef<OsStr>>(
@@ -94,7 +89,7 @@ pub(crate) fn process<P: AsRef<Path> + AsRef<OsStr>>(
     number_arg: &str,
     store_background: P,
 ) -> Result<(), Box<dyn Error>> {
-    let number =  number_arg.parse::<f32>().unwrap();
+    let number = number_arg.parse::<f32>().unwrap();
     random_sample(filename, number, store_background);
     Ok(())
 }
